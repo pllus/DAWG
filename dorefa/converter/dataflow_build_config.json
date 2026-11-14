@@ -1,0 +1,11 @@
+{
+    "output_dir": "output_my_accelerator",
+    "synth_clk_period_ns": 10.0,
+    "board": "KV260",
+    "fpga_part": "xck26-sfvc784-2LV-c",
+    "auto_fifo_depths": true,
+    "generate_outputs": [
+        "stitched_ip",
+        "bitfile"
+    ]
+}
