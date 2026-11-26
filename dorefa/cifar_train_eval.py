@@ -14,7 +14,7 @@ from tensorboardX import SummaryWriter
 
 from nets.cifar_resnet import *
 
-from utils.preprocessing import *
+from utils.preprocessing import cifar_transform
 
 # Training settings
 parser = argparse.ArgumentParser(description='DoReFa-Net pytorch implementation')
@@ -77,15 +77,17 @@ def main():
                                             num_workers=cfg.num_workers)
 
   print('==> Building ResNet..')
-  model = resnet20(wbits=cfg.Wbits, abits=cfg.Abits).cuda()
+  device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+  print(f'device: {device.type}')
+  model = resnet20(wbits=cfg.Wbits, abits=cfg.Abits).to(device)
 
   optimizer = torch.optim.SGD(model.parameters(), lr=cfg.lr, momentum=0.9, weight_decay=cfg.wd)
   lr_schedu = optim.lr_scheduler.MultiStepLR(optimizer, [100, 150, 180], gamma=0.1)
-  criterion = torch.nn.CrossEntropyLoss().cuda()
+  criterion = torch.nn.CrossEntropyLoss().to(device)
   summary_writer = SummaryWriter(cfg.log_dir)
 
   if cfg.pretrain:
-    model.load_state_dict(torch.load(cfg.pretrain_dir))
+    model.load_state_dict(torch.load(cfg.pretrain_dir, map_location=device))
 
   # Training
   def train(epoch):
@@ -94,8 +96,9 @@ def main():
 
     start_time = time.time()
     for batch_idx, (inputs, targets) in enumerate(train_loader):
-      outputs = model(inputs.cuda())
-      loss = criterion(outputs, targets.cuda())
+      inputs, targets = inputs.to(device), targets.to(device)
+      outputs = model(inputs)
+      loss = criterion(outputs, targets)
 
       optimizer.zero_grad()
       loss.backward()
@@ -114,11 +117,10 @@ def main():
         summary_writer.add_scalar('learning rate', optimizer.param_groups[0]['lr'], step)
 
   def test(epoch):
-    # pass
     model.eval()
     correct = 0
     for batch_idx, (inputs, targets) in enumerate(eval_loader):
-      inputs, targets = inputs.cuda(), targets.cuda()
+      inputs, targets = inputs.to(device), targets.to(device)
 
       outputs = model(inputs)
       _, predicted = torch.max(outputs.data, 1)
